@@ -1,9 +1,11 @@
+import os
 import sqlite3 as sqlite
 import sys
 import csv
 
 # Constants
 MEASLES_DATA        = 'measles.csv'
+OUTPUT_DIR          = 'output'
 
 INCOME_LEVELS       = {1: 'WB_LI', 2: 'WB_LMI', 3: 'WB_UMI', 4: 'WB_UI'}
 
@@ -26,7 +28,7 @@ def terminate(msg, error_code=1):
 
 class Country:
 
-    def __init__(self, name, income_level, percentage):
+    def __init__(self, name, income_level, percentage=0):
         self.name = name
         self.income_level = income_level
         self.percentage = percentage
@@ -41,7 +43,10 @@ if __name__ =='__main__':
     output_file_dir = input('Enter the name of the output file: ')
     output_file_dir += '.csv' if output_file_dir[-4:] != '.csv' else ''
 
-    with open(output_file_dir, 'w', newline='') as output_file:
+    if not os.path.exists(OUTPUT_DIR):
+        os.mkdir(OUTPUT_DIR)
+
+    with open(OUTPUT_DIR + '/' + output_file_dir, 'w', newline='') as output_file:
         writer = csv.writer(output_file)
         reader = csv.reader(measles_file)
 
@@ -78,22 +83,38 @@ if __name__ =='__main__':
 
         i = 0
         for row in reader:
+            
+            country = row[INDEX_COUNTRY]
+            income = row[INDEX_INCOME_LEVEL]
+            percentage = int(row[2 + MAX_YEAR - int(year)])
+            
             if i == 0 or (income_level != 'all' and row[INDEX_INCOME_LEVEL] != INCOME_LEVELS[int(income_level)]):
                 i += 1
                 continue
+            elif i == 1:
+                lowest_country = Country(country, income, percentage)
+                highest_country = Country(country, income, percentage)
 
-            info = [row[INDEX_COUNTRY], row[INDEX_INCOME_LEVEL]]
+            info = [country, income]
 
             if year == 'all':
                 for j in range(2, len(row)):
-                    info.append(row[j])
+                    percentage = row[j]
+                    info.append(percentage)
                     total_percentage += 0 if not row[j].isnumeric() else int(row[j])
-                    record_count += 1
+                    record_count += 0 if not row[j].isnumeric() else 1
             else:
                 index = 2 + MAX_YEAR - int(year)
-                info.append(row[index])
+                percentage = float(row[index])
+                info.append(percentage)
                 total_percentage += 0 if not row[index].isnumeric() else int(row[index])
-                record_count += 1
+                record_count += 0 if not row[index].isnumeric() else 1
+
+                if percentage < lowest_country.percentage:
+                    lowest_country = Country(country, income, percentage)
+                
+                if percentage > highest_country.percentage:
+                    highest_country = Country(country, income, percentage)
 
             writer.writerow(info)
 
@@ -103,6 +124,8 @@ if __name__ =='__main__':
 
         print('Total records meeting criteria: %d' % record_count)
         print('Average vaccination percentage: %.1f' % average_percetange)
-    
+        print('%s has the lowest vaccination percentage with an average of %.1f%%' % (lowest_country.name, lowest_country.percentage))
+        print('%s has the highest vaccination percentage with an average of %.1f%%' % (highest_country.name, highest_country.percentage))
+
     measles_file.close()
     
