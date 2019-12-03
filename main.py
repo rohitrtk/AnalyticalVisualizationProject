@@ -24,6 +24,13 @@ def terminate(msg, error_code=1):
     print(msg)
     sys.exit(error_code)
 
+class Country:
+
+    def __init__(self, name, income_level, percentage):
+        self.name = name
+        self.income_level = income_level
+        self.percentage = percentage
+
 if __name__ =='__main__':
 
     try:
@@ -58,23 +65,44 @@ if __name__ =='__main__':
     
         writer.writerow(header)
 
+        # Total number of records that match search criteria
+        record_count = 0
+        # Total vaccination percentage
+        total_percentage = 0
+        # Average vaccination percentage of records 
+        average_percetange = 0
+        # Country with the lowest vaccination percentage
+        lowest_country = None
+        # Country with the highest vaccination percentage
+        highest_country = None
+
         i = 0
         for row in reader:
-            if i == 0 or (income_level != 'all' and row[INDEX_INCOME_LEVEL] != INCOME_LEVELS[income_level]):
+            if i == 0 or (income_level != 'all' and row[INDEX_INCOME_LEVEL] != INCOME_LEVELS[int(income_level)]):
                 i += 1
                 continue
-            
+
             info = [row[INDEX_COUNTRY], row[INDEX_INCOME_LEVEL]]
 
             if year == 'all':
                 for j in range(2, len(row)):
                     info.append(row[j])
+                    total_percentage += 0 if not row[j].isnumeric() else int(row[j])
+                    record_count += 1
             else:
-                info.append(row[2 + MAX_YEAR - int(year)])
+                index = 2 + MAX_YEAR - int(year)
+                info.append(row[index])
+                total_percentage += 0 if not row[index].isnumeric() else int(row[index])
+                record_count += 1
 
             writer.writerow(info)
 
             i += 1
+
+        average_percetange = total_percentage / record_count
+
+        print('Total records meeting criteria: %d' % record_count)
+        print('Average vaccination percentage: %.1f' % average_percetange)
     
     measles_file.close()
     
