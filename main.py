@@ -1,7 +1,8 @@
-import os
+import os, sys, csv
 import sqlite3 as sqlite
-import sys
-import csv
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 
 # Constants
 MEASLES_DATA        = 'measles.csv'
@@ -23,10 +24,19 @@ COUNTRY         = 'Country'
 WB_IL           = 'World_Bank_Income_Level'
 
 def terminate(msg, error_code=1):
+    '''
+    Prints a message to the user and then terminates the program
+    with the given code, default is 1.
+    '''
+
     print(msg)
     sys.exit(error_code)
 
 class Country:
+    ''' 
+    Helper class to store the name, income level and percentage
+    of a country
+    '''
 
     def __init__(self, name, income_level, percentage=0):
         self.name = name
@@ -35,29 +45,38 @@ class Country:
 
 if __name__ =='__main__':
 
+    # Attempt to open measles file, terminate program if it cannot be found
     try:
         measles_file = open(MEASLES_DATA, 'r')
     except:
         terminate('Cannot find %s. Program will terminate.' % (MEASLES_DATA))
 
-    output_file_dir = input('Enter the name of the output file: ')
-    output_file_dir += '.csv' if output_file_dir[-4:] != '.csv' else ''
-
+    # Create the output folder if it doesn't exist
     if not os.path.exists(OUTPUT_DIR):
         os.mkdir(OUTPUT_DIR)
 
-    with open(OUTPUT_DIR + '/' + output_file_dir, 'w', newline='') as output_file:
+    # Get the output file name and add .csv on the end of it unless it is already a .csv
+    output_file_dir = input('Enter the name of the output file: ')
+    output_file_dir += '.csv' if output_file_dir[-4:] != '.csv' else ''
+
+    full_dir = OUTPUT_DIR + '//' + output_file_dir
+
+    # Open the output file
+    with open(full_dir, 'w', newline='') as output_file:
         writer = csv.writer(output_file)
         reader = csv.reader(measles_file)
 
+        # Create the first 2 indicies of the file header
         header = [COUNTRY, WB_IL]
         
         # Get desired year from user
         year = input(YEAR_PROMPT)
 
+        # If the user wants all years in the file, add them to the header
         if year.lower() == 'all':
             for i in range(2017, 1979, -1):
-                header.append(i)
+                header.append(str(i))
+        # Append the year to header
         else:
             header.append(year)
 
@@ -68,6 +87,7 @@ if __name__ =='__main__':
         if income_level != 'all' and not 0 < int(income_level) < 5:
             terminate('That income level is not supported. Program will terminate.')
     
+        # Write the header to the output file
         writer.writerow(header)
 
         # Total number of records that match search criteria
@@ -86,23 +106,40 @@ if __name__ =='__main__':
             
             country = row[INDEX_COUNTRY]
             income = row[INDEX_INCOME_LEVEL]
-            percentage = int(row[2 + MAX_YEAR - int(year)])
+            percentage = 0
             
+            # Skip the header and skip rows that don't match search criteria
             if i == 0 or (income_level != 'all' and row[INDEX_INCOME_LEVEL] != INCOME_LEVELS[int(income_level)]):
                 i += 1
                 continue
             elif i == 1:
+                if year == 'all':
+                    k = 0
+                    for j in range(2, len(row)):
+                        if not row[j].isnumeric():
+                            k += 1
+                        else:
+                            percentage += int(row[j])
+                    percentage /= len(row) - 2 - k
+                else:
+                    percentage = int(row[2 + MAX_YEAR - int(year)])
+
                 lowest_country = Country(country, income, percentage)
                 highest_country = Country(country, income, percentage)
 
             info = [country, income]
 
             if year == 'all':
+                k = 0
                 for j in range(2, len(row)):
-                    percentage = row[j]
+                    if not row[j].isnumeric():
+                        k += 1
+                    else:
+                        percentage += int(row[j])
                     info.append(percentage)
                     total_percentage += 0 if not row[j].isnumeric() else int(row[j])
                     record_count += 0 if not row[j].isnumeric() else 1
+                percentage /= len(row) - 2 - k
             else:
                 index = 2 + MAX_YEAR - int(year)
                 percentage = float(row[index])
@@ -126,6 +163,16 @@ if __name__ =='__main__':
         print('Average vaccination percentage: %.1f' % average_percetange)
         print('%s has the lowest vaccination percentage with an average of %.1f%%' % (lowest_country.name, lowest_country.percentage))
         print('%s has the highest vaccination percentage with an average of %.1f%%' % (highest_country.name, highest_country.percentage))
+
+    vaccinations = pd.read_csv(full_dir, header=0, names=header)
+    countries = vaccinations[COUNTRY].values
+    percentages = vaccinations[year].values
+    y_pos = np.arange(len(countries))
+
+    plt.bar(y_pos, percentages)
+    plt.xticks(y_pos, countries)
+
+    plt.show()
 
     measles_file.close()
     
