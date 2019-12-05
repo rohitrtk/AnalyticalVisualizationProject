@@ -3,6 +3,7 @@ import sqlite3 as sqlite
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.widgets import Cursor
 
 # Constants
 MEASLES_DATA        = 'measles.csv'
@@ -61,6 +62,8 @@ if __name__ =='__main__':
 
     full_dir = OUTPUT_DIR + '//' + output_file_dir
 
+    plot_title = ''
+
     # Open the output file
     with open(full_dir, 'w', newline='') as output_file:
         writer = csv.writer(output_file)
@@ -76,9 +79,11 @@ if __name__ =='__main__':
         if year.lower() == 'all':
             for i in range(2017, 1979, -1):
                 header.append(str(i))
+            plot_title = 'Percentage of Countries Vaccinated between 1980 & 2017'
         # Append the year to header
         else:
             header.append(year)
+            plot_title = 'Percentage of Countries Vaccinated in %s' % year
 
         # Get desired income level from user
         income_level = input(INCOME_PROMPT)
@@ -164,15 +169,25 @@ if __name__ =='__main__':
         print('%s has the lowest vaccination percentage with an average of %.1f%%' % (lowest_country.name, lowest_country.percentage))
         print('%s has the highest vaccination percentage with an average of %.1f%%' % (highest_country.name, highest_country.percentage))
 
+    # Close the input file
+    measles_file.close()
+
+    # Get data to display in a plot
     vaccinations = pd.read_csv(full_dir, header=0, names=header)
     countries = vaccinations[COUNTRY].values
     percentages = vaccinations[year].values
     y_pos = np.arange(len(countries))
 
-    plt.bar(y_pos, percentages)
-    plt.xticks(y_pos, countries)
+    # Plot setup
+    fig, ax = plt.subplots(figsize = (8, 8))
+    
+    plt.barh(y_pos, percentages)
+    plt.yticks(y_pos, countries)
+    plt.xlabel('Countries')
+    plt.ylabel('Percentage of Country Vaccinated')
+    plt.title(plot_title)
+
+    for t in ax.yaxis.get_major_ticks():
+        t.label.set_fontsize(6)
 
     plt.show()
-
-    measles_file.close()
-    
