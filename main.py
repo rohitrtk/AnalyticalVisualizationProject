@@ -45,7 +45,6 @@ class Country:
         self.percentage = percentage
 
 if __name__ =='__main__':
-
     # Attempt to open measles file, terminate program if it cannot be found
     try:
         measles_file = open(MEASLES_DATA, 'r')
@@ -108,7 +107,8 @@ if __name__ =='__main__':
 
         i = 0
         for row in reader:
-            
+            # Get the countries name, income level based on the row and 
+            # set percentage to 0 temporarily
             country = row[INDEX_COUNTRY]
             income = row[INDEX_INCOME_LEVEL]
             percentage = 0
@@ -117,7 +117,12 @@ if __name__ =='__main__':
             if i == 0 or (income_level != 'all' and row[INDEX_INCOME_LEVEL] != INCOME_LEVELS[int(income_level)]):
                 i += 1
                 continue
-            elif i == 1:
+
+            # If the lowest and highest countries haven't been set, set
+            # them based on if the user wants all countries, or one country
+            if lowest_country == None or highest_country == None:
+                # If the user wants all of the years for a country, get the average
+                # of all of the years, ignoring inputs that are blank
                 if year == 'all':
                     k = 0
                     for j in range(2, len(row)):
@@ -126,8 +131,15 @@ if __name__ =='__main__':
                         else:
                             percentage += int(row[j])
                     percentage /= len(row) - 2 - k
+                # If the user wants just one year, set the initial percentage to
+                # the first countries index; unless it's blank, ignore the countries
+                # index and continue to the next country
                 else:
-                    percentage = int(row[2 + MAX_YEAR - int(year)])
+                    index = 2 + MAX_YEAR - int(year)
+                    if not row[index].isnumeric():
+                        continue
+                    else:
+                        percentage = int(row[index])
 
                 lowest_country = Country(country, income, percentage)
                 highest_country = Country(country, income, percentage)
@@ -147,7 +159,12 @@ if __name__ =='__main__':
                 percentage /= len(row) - 2 - k
             else:
                 index = 2 + MAX_YEAR - int(year)
-                percentage = float(row[index])
+
+                if not row[index].isnumeric():
+                    continue
+                else:
+                    percentage = float(row[index])
+                
                 info.append(percentage)
                 total_percentage += 0 if not row[index].isnumeric() else int(row[index])
                 record_count += 0 if not row[index].isnumeric() else 1
@@ -158,12 +175,14 @@ if __name__ =='__main__':
                 if percentage > highest_country.percentage:
                     highest_country = Country(country, income, percentage)
 
+            # Write info to file
             writer.writerow(info)
 
             i += 1
 
         average_percetange = total_percentage / record_count
 
+        # Print details to user
         print('Total records meeting criteria: %d' % record_count)
         print('Average vaccination percentage: %.1f' % average_percetange)
         print('%s has the lowest vaccination percentage with an average of %.1f%%' % (lowest_country.name, lowest_country.percentage))
