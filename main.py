@@ -9,20 +9,20 @@ from matplotlib.widgets import Cursor
 MEASLES_DATA        = 'measles.csv'
 OUTPUT_DIR          = 'output'
 
-INCOME_LEVELS       = {1: 'WB_LI', 2: 'WB_LMI', 3: 'WB_UMI', 4: 'WB_HI'}
+INCOME_LEVELS       = { 1: 'WB_LI', 2: 'WB_LMI', 3: 'WB_UMI', 4: 'WB_HI' }
 
 INDEX_COUNTRY       = 0
 INDEX_INCOME_LEVEL  = 1
 
-MIN_YEAR = 1980
-MAX_YEAR = 2017
+MIN_YEAR            = 1980
+MAX_YEAR            = 2017
 
 # Strings
-YEAR_PROMPT     = 'Enter a year between 1980 & 2017: '
-INCOME_PROMPT   = '1 - Low Income\n2 - Lower Middle Income\n3 - Upper Middle Income\n4 - High Income\nEnter one of the above income levels: '
+YEAR_PROMPT         = 'Enter a year between 1980 & 2017: '
+INCOME_PROMPT       = '1 - Low Income\n2 - Lower Middle Income\n3 - Upper Middle Income\n4 - High Income\nEnter one of the above income levels: '
 
-COUNTRY         = 'Country'
-WB_IL           = 'World_Bank_Income_Level'
+COUNTRY             = 'Country'
+WB_IL               = 'World_Bank_Income_Level'
 
 def terminate(msg, error_code=1):
     '''
@@ -32,6 +32,58 @@ def terminate(msg, error_code=1):
 
     print(msg)
     sys.exit(error_code)
+
+def get_info_based_on_year(year, row, total_percentage=None, record_count=None):
+    '''
+    Returns a tuple containing the percent of country vaccinated, the total percentage
+    calculated for all countries and the total number of records that have been counted
+    given a specified year (or all) and row in the csv file.
+
+    Returns -1 if this row is invalid.
+
+    A row is invalid if either their is no percentage at the year index or the data
+    doesn't make sense.
+    '''
+
+    percentage = 0
+
+    # If checking countries average percentage over all years, get the average across
+    # all of the columns for that country
+    if year == 'all':
+        k = 0
+        for j in range(2, len(row)):
+            if not row[j].isnumeric():
+                k += 1
+            else:
+                percentage += int(row[j])
+
+            if not total_percentage is None or not total_percentage is None:
+                total_percentage += 0 if not row[j].isnumeric() else int(row[j])
+                record_count += 0 if not row[j].isnumeric() else 1
+
+            info.append(percentage)
+        
+        number_of_years_checked = len(row) - 2 - k
+
+        # Not sure if this can happen but better safe than sorry
+        if number_of_years_checked <= 0:
+            return -1
+
+        percentage /= number_of_years_checked
+    # If checking specific year, get the value at the years index for the country
+    else:
+        index = 2 + MAX_YEAR - int(year)
+
+        if not row[index].isnumeric():
+            return -1, total_percentage, record_count
+        else:
+            percentage = float(row[index])
+        
+            if not total_percentage is None or not total_percentage is None:
+                total_percentage += 0 if not row[index].isnumeric() else int(row[index])
+                record_count += 0 if not row[index].isnumeric() else 1
+
+    return percentage, total_percentage, record_count
 
 class Country:
     ''' 
@@ -60,8 +112,6 @@ if __name__ =='__main__':
     output_file_dir += '.csv' if output_file_dir[-4:] != '.csv' else ''
 
     full_dir = OUTPUT_DIR + '//' + output_file_dir
-
-    plot_title = ''
 
     # Open the output file
     with open(full_dir, 'w', newline='') as output_file:
@@ -121,62 +171,32 @@ if __name__ =='__main__':
             # If the lowest and highest countries haven't been set, set
             # them based on if the user wants all countries, or one country
             if lowest_country == None or highest_country == None:
-                # If the user wants all of the years for a country, get the average
-                # of all of the years, ignoring inputs that are blank
-                if year == 'all':
-                    k = 0
-                    for j in range(2, len(row)):
-                        if not row[j].isnumeric():
-                            k += 1
-                        else:
-                            percentage += int(row[j])
-                    percentage /= len(row) - 2 - k
-                # If the user wants just one year, set the initial percentage to
-                # the first countries index; unless it's blank, ignore the countries
-                # index and continue to the next country
-                else:
-                    index = 2 + MAX_YEAR - int(year)
-                    if not row[index].isnumeric():
-                        continue
-                    else:
-                        percentage = int(row[index])
+                # Get initial percentage
+                percentage,_,_ = get_info_based_on_year(year, row)
+                if percentage == -1:
+                    continue
 
                 lowest_country = Country(country, income, percentage)
                 highest_country = Country(country, income, percentage)
 
+            # Setting up data to be written
             info = [country, income]
 
-            if year == 'all':
-                k = 0
-                for j in range(2, len(row)):
-                    if not row[j].isnumeric():
-                        k += 1
-                    else:
-                        percentage += int(row[j])
+            # Store the countries percentage, the running percentage and number of records
+            # records counted in a tuple for later use
+            percentage, total_percentage, record_count = get_info_based_on_year(year, row, total_percentage, record_count)
+            if percentage == -1:
+                continue
 
-                    total_percentage += 0 if not row[j].isnumeric() else int(row[j])
-                    record_count += 0 if not row[j].isnumeric() else 1
-
-                    info.append(percentage)
-                percentage /= len(row) - 2 - k
-            else:
-                index = 2 + MAX_YEAR - int(year)
-
-                if not row[index].isnumeric():
-                    continue
-                else:
-                    percentage = float(row[index])
-                
-                    total_percentage += 0 if not row[index].isnumeric() else int(row[index])
-                    record_count += 0 if not row[index].isnumeric() else 1
-                
-                info.append(percentage)
-
-                if percentage < lowest_country.percentage:
-                    lowest_country = Country(country, income, percentage)
-                
-                if percentage > highest_country.percentage:
-                    highest_country = Country(country, income, percentage)
+            # Add the percentage to last column of info to be displayed
+            info.append(percentage)
+            
+            # Update smallest and largest country vaccination percentages
+            if percentage < lowest_country.percentage:
+                lowest_country = Country(country, income, percentage)
+            
+            if percentage > highest_country.percentage:
+                highest_country = Country(country, income, percentage)
 
             # Write info to file
             writer.writerow(info)
@@ -208,8 +228,7 @@ if __name__ =='__main__':
     
     plt.barh(y_pos, percentages)
     plt.yticks(y_pos, countries)
-    plt.xlabel('Countries')
-    plt.ylabel('Percentage of Country Vaccinated')
+    plt.xlabel('Percent of Country Vaccinated')
     plt.title(plot_title)
 
     for t in ax.yaxis.get_major_ticks():
