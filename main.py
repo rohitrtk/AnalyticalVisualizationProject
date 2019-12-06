@@ -9,7 +9,7 @@ from matplotlib.widgets import Cursor
 MEASLES_DATA        = 'measles.csv'
 OUTPUT_DIR          = 'output'
 
-INCOME_LEVELS       = {1: 'WB_LI', 2: 'WB_LMI', 3: 'WB_UMI', 4: 'WB_UI'}
+INCOME_LEVELS       = {1: 'WB_LI', 2: 'WB_LMI', 3: 'WB_UMI', 4: 'WB_HI'}
 
 INDEX_COUNTRY       = 0
 INDEX_INCOME_LEVEL  = 1
@@ -98,7 +98,7 @@ if __name__ =='__main__':
         record_count = 0
         # Total vaccination percentage
         total_percentage = 0
-        # Average vaccination percentage of records 
+        # Average vaccination percentage of records
         average_percetange = 0
         # Country with the lowest vaccination percentage
         lowest_country = None
@@ -153,9 +153,11 @@ if __name__ =='__main__':
                         k += 1
                     else:
                         percentage += int(row[j])
-                    info.append(percentage)
+
                     total_percentage += 0 if not row[j].isnumeric() else int(row[j])
                     record_count += 0 if not row[j].isnumeric() else 1
+
+                    info.append(percentage)
                 percentage /= len(row) - 2 - k
             else:
                 index = 2 + MAX_YEAR - int(year)
@@ -165,9 +167,10 @@ if __name__ =='__main__':
                 else:
                     percentage = float(row[index])
                 
+                    total_percentage += 0 if not row[index].isnumeric() else int(row[index])
+                    record_count += 0 if not row[index].isnumeric() else 1
+                
                 info.append(percentage)
-                total_percentage += 0 if not row[index].isnumeric() else int(row[index])
-                record_count += 0 if not row[index].isnumeric() else 1
 
                 if percentage < lowest_country.percentage:
                     lowest_country = Country(country, income, percentage)
@@ -179,12 +182,15 @@ if __name__ =='__main__':
             writer.writerow(info)
 
             i += 1
+        
+        if record_count == 0:
+            terminate('Found no countries matching an income level %s in year %s' % (INCOME_LEVELS[int(income_level)], year))
 
         average_percetange = total_percentage / record_count
 
         # Print details to user
         print('Total records meeting criteria: %d' % record_count)
-        print('Average vaccination percentage: %.1f' % average_percetange)
+        print('Average vaccination percentage: %.1f%%' % average_percetange)
         print('%s has the lowest vaccination percentage with an average of %.1f%%' % (lowest_country.name, lowest_country.percentage))
         print('%s has the highest vaccination percentage with an average of %.1f%%' % (highest_country.name, highest_country.percentage))
 
