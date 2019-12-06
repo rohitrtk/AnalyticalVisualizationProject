@@ -3,7 +3,6 @@ import sqlite3 as sqlite
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Cursor
 
 # Constants
 MEASLES_DATA        = 'measles.csv'
@@ -60,8 +59,6 @@ def get_info_based_on_year(year, row, total_percentage=None, record_count=None):
             if not total_percentage is None or not total_percentage is None:
                 total_percentage += 0 if not row[j].isnumeric() else int(row[j])
                 record_count += 0 if not row[j].isnumeric() else 1
-
-            info.append(percentage)
         
         number_of_years_checked = len(row) - 2 - k
 
@@ -97,6 +94,7 @@ class Country:
         self.percentage = percentage
 
 if __name__ =='__main__':
+
     # Attempt to open measles file, terminate program if it cannot be found
     try:
         measles_file = open(MEASLES_DATA, 'r')
@@ -138,8 +136,11 @@ if __name__ =='__main__':
         income_level = input(INCOME_PROMPT)
 
         # If the user input for income level is not a valid income level, terminate program
-        if income_level != 'all' and not 0 < int(income_level) < 5:
-            terminate('That income level is not supported. Program will terminate.')
+        try:
+            if income_level != 'all' and not 0 < int(income_level) < 5:
+                terminate('The income level \'%s\' is not valid. Program will terminate.' % income_level)
+        except ValueError:
+            terminate('The income level \'%s\' is not valid. Program will terminate.' % income_level)
     
         # Write the header to the output file
         writer.writerow(header)
