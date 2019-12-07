@@ -44,7 +44,7 @@ def get_info_based_on_year(year, row, total_percentage=None, record_count=None):
     doesn't make sense.
     '''
 
-    percentage = 0
+    percentages = []
 
     # If checking countries average percentage over all years, get the average across
     # all of the columns for that country
@@ -52,21 +52,14 @@ def get_info_based_on_year(year, row, total_percentage=None, record_count=None):
         k = 0
         for j in range(2, len(row)):
             if not row[j].isnumeric():
-                k += 1
-            else:
-                percentage += int(row[j])
+                break
+            percentages.append(int(row[j]))
 
             if not total_percentage is None or not total_percentage is None:
-                total_percentage += 0 if not row[j].isnumeric() else int(row[j])
-                record_count += 0 if not row[j].isnumeric() else 1
-        
-        number_of_years_checked = len(row) - 2 - k
+                total_percentage += int(row[j])
+                record_count += 1
 
-        # Not sure if this can happen but better safe than sorry
-        if number_of_years_checked <= 0:
-            return -1
-
-        percentage /= number_of_years_checked
+        #percentage = int(percentage / number_of_years_checked)
     # If checking specific year, get the value at the years index for the country
     else:
         index = 2 + MAX_YEAR - int(year)
@@ -74,13 +67,13 @@ def get_info_based_on_year(year, row, total_percentage=None, record_count=None):
         if not row[index].isnumeric():
             return -1, total_percentage, record_count
         else:
-            percentage = float(row[index])
+            percentages.append(int(row[index]))
         
             if not total_percentage is None or not total_percentage is None:
                 total_percentage += 0 if not row[index].isnumeric() else int(row[index])
                 record_count += 0 if not row[index].isnumeric() else 1
 
-    return percentage, total_percentage, record_count
+    return percentages, total_percentage, record_count
 
 class Country:
     ''' 
@@ -88,10 +81,10 @@ class Country:
     of a country
     '''
 
-    def __init__(self, name, income_level, percentage=0):
+    def __init__(self, name, income_level, percentage):
         self.name = name
         self.income_level = income_level
-        self.percentage = percentage
+        self.percentage = min(percentage)
 
 if __name__ =='__main__':
 
@@ -189,15 +182,16 @@ if __name__ =='__main__':
             if percentage == -1:
                 continue
 
-            # Add the percentage to last column of info to be displayed
-            info.append(percentage)
+            # Add the percentage to last column of info to be displayed and update smallest
+            # and largest country vaccination percentages
+            for p in percentage:
+                info.append(p)
             
-            # Update smallest and largest country vaccination percentages
-            if percentage < lowest_country.percentage:
-                lowest_country = Country(country, income, percentage)
-            
-            if percentage > highest_country.percentage:
-                highest_country = Country(country, income, percentage)
+                if p < lowest_country.percentage:
+                    lowest_country = Country(country, income, percentage)
+                
+                if p > highest_country.percentage:
+                    highest_country = Country(country, income, percentage)
 
             # Write info to file
             writer.writerow(info)
@@ -221,7 +215,56 @@ if __name__ =='__main__':
     # Get data to display in a plot
     vaccinations = pd.read_csv(full_dir, header=0, names=header)
     countries = vaccinations[COUNTRY].values
-    percentages = vaccinations[year].values
+    
+    # Get average percentage of world for each year if user wants all years
+    """
+    if year == 'all':
+        percentages = None
+
+        # Sum all of the columns for each country
+        for i in range(1980, 2018):
+            if percentages is None:
+                percentages = vaccinations[str(i)].values
+                continue
+            
+            for j in range(0, len(percentages)):
+                percentages[j] += vaccinations[str(i)].values[j]
+            
+
+    # Get percentage for specific year
+    else:
+        percentages = vaccinations[year].values
+    """
+    
+    percentages = np.array([])
+
+    # Get values from output file
+    with open(full_dir, 'r', newline='') as data:
+        reader = csv.reader(data)
+        
+        i = 0
+        for row in reader:
+            if i == 0:
+                i += 1
+                continue
+            
+            if year == 'all':
+                avg = 0
+                
+                for j in range(2, len(row)):
+                    if not row[j].isnumeric():
+                        break 
+
+                    avg += int(row[j])
+                avg /= j - 2
+
+                percentages = np.append(percentages, [avg])
+
+            else:
+                percentages = np.append(percentages, [int(row[2])])
+
+            i += 1
+
     y_pos = np.arange(len(countries))
 
     # Plot setup
