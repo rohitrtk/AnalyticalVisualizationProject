@@ -44,36 +44,48 @@ def get_info_based_on_year(year, row, total_percentage=None, record_count=None):
     '''
 
     percentages = []
+    indicies = None
 
     # If checking countries average percentage over all years, get the average across
     # all of the columns for that country
     if year == 'all':
         k = 0
-        for j in range(2, len(row)):
+        for j in range(2, len(row) + 1):
+
+            if j == len(row):
+                break
+
             if not row[j].isnumeric():
                 break
+
             percentages.append(int(row[j]))
 
             if not total_percentage is None or not total_percentage is None:
                 total_percentage += int(row[j])
                 record_count += 1
+        indicies = j
 
-        #percentages = int(sum(percentages) / (j - 2))
     # If checking specific year, get the value at the years index for the country
     else:
         index = 2 + MAX_YEAR - int(year)
 
         if not row[index].isnumeric():
-            return -1, total_percentage, record_count
+            return -1, total_percentage, record_count, indicies
         else:
-            #percentages.append(int(row[index]))
             percentages = int(row[index])
 
             if not total_percentage is None or not total_percentage is None:
                 total_percentage += 0 if not row[index].isnumeric() else int(row[index])
                 record_count += 0 if not row[index].isnumeric() else 1
 
-    return percentages, total_percentage, record_count
+    return percentages, total_percentage, record_count, indicies
+
+def clamp(val, min=0, max=100):
+    if val < min:
+        return min
+    elif val > max:
+        return max
+    return val
 
 class Country:
     ''' 
@@ -122,6 +134,12 @@ if __name__ =='__main__':
             plot_title = 'Percentage of Countries Vaccinated between 1980 & 2017'
         # Append the year to header
         else:
+            try:
+                if not 1980 <= int(year) <= 2017:
+                    terminate('The year \'%s\' is not valid. Program will terminate' % year)
+            except ValueError:
+                terminate('The year \'%s\' is not valid. Program will terminate' % year)
+
             header.append(year)
             plot_title = 'Percentage of Countries Vaccinated in %s' % year
 
@@ -149,6 +167,10 @@ if __name__ =='__main__':
         # Country with the highest vaccination percentage
         highest_country = None
 
+        # Holds the average percentage for a country over available years only
+        # if the user wants info from over all years
+        average_percentages = []
+
         i = 0
         for row in reader:
             # Get the countries name, income level based on the row and 
@@ -166,11 +188,11 @@ if __name__ =='__main__':
             # them based on if the user wants all countries, or one country
             if lowest_country == None or highest_country == None:
                 # Get initial percentage
-                percentage,_,_ = get_info_based_on_year(year, row)
+                percentage,_,_,max_indicies = get_info_based_on_year(year, row)
                 if percentage == -1:
                     continue
 
-                percentage = sum(percentage) / (len(row) - 2) if year == 'all' else percentage
+                percentage = sum(percentage) / (max_indicies - 2) if year == 'all' else percentage
 
                 lowest_country = Country(country, income, percentage)
                 highest_country = Country(country, income, percentage)
@@ -180,28 +202,30 @@ if __name__ =='__main__':
 
             # Store the countries percentage, the running percentage and number of records
             # records counted in a tuple for later use
-            percentage, total_percentage, record_count = get_info_based_on_year(year, row, total_percentage, record_count)
+            percentage, total_percentage, record_count, max_indicies = get_info_based_on_year(year, row, total_percentage, record_count)
             if percentage == -1:
                 continue
 
-            # Add the percentage to last column of info to be displayed and update smallest
-            # and largest country vaccination percentages
-
+            # Update column in output file
             if year == 'all':
                 for p in percentage:
                     info.append(p)
             else:
                 info.append(percentage)
 
-            percentage = sum(percentage) / (len(row) - 2) if year == 'all' else percentage
-
-            if percentage < lowest_country.percentage:
-                lowest_country = Country(country, income, percentage)
-            if percentage > highest_country.percentage:
-                highest_country = Country(country, income, percentage)
-
             # Write info to file
             writer.writerow(info)
+            
+            if year == 'all':
+                tp = sum(percentage)
+                percentage = tp / (max_indicies - 2)
+            average_percentages.append(percentage)
+            
+            # Update largest and smallest average percentages
+            if percentage < lowest_country.percentage:
+                lowest_country = Country(country, income, clamp(percentage))
+            if percentage > highest_country.percentage:
+                highest_country = Country(country, income, clamp(percentage))
 
             i += 1
         
@@ -223,57 +247,8 @@ if __name__ =='__main__':
     vaccinations = pd.read_csv(full_dir, header=0, names=header)
     countries = vaccinations[COUNTRY].values
     
-    # Get average percentage of world for each year if user wants all years
-    """
-    if year == 'all':
-        percentages = None
-
-        # Sum all of the columns for each country
-        for i in range(1980, 2018):
-            if percentages is None:
-                percentages = vaccinations[str(i)].values
-                continue
-            
-            for j in range(0, len(percentages)):
-                percentages[j] += vaccinations[str(i)].values[j]
-            
-
-    # Get percentage for specific year
-    else:
-        percentages = vaccinations[year].values
-    """
+    percentages = vaccinations[year].values if not year == 'all' else np.array(average_percentages)
     
-    percentages = np.array([])
-
-    # Get values from output file
-    with open(full_dir, 'r', newline='') as data:
-        reader = csv.reader(data)
-        
-        i = 0
-        for row in reader:
-            if i == 0:
-                i += 1
-                continue
-            
-            if year == 'all':
-                avg = 0
-                
-                for j in range(2, len(row)):
-                    
-                    if not row[j].isnumeric():
-                        break 
-
-                    avg += int(row[j])
-                    
-                avg /= j - 2
-
-                percentages = np.append(percentages, [avg])
-
-            else:
-                percentages = np.append(percentages, [int(row[2])])
-
-            i += 1
-
     y_pos = np.arange(len(countries))
 
     # Plot setup
