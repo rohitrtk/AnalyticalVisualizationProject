@@ -1,5 +1,4 @@
 import os, sys, csv
-import sqlite3 as sqlite
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -59,7 +58,7 @@ def get_info_based_on_year(year, row, total_percentage=None, record_count=None):
                 total_percentage += int(row[j])
                 record_count += 1
 
-        #percentage = int(percentage / number_of_years_checked)
+        #percentages = int(sum(percentages) / (j - 2))
     # If checking specific year, get the value at the years index for the country
     else:
         index = 2 + MAX_YEAR - int(year)
@@ -67,8 +66,9 @@ def get_info_based_on_year(year, row, total_percentage=None, record_count=None):
         if not row[index].isnumeric():
             return -1, total_percentage, record_count
         else:
-            percentages.append(int(row[index]))
-        
+            #percentages.append(int(row[index]))
+            percentages = int(row[index])
+
             if not total_percentage is None or not total_percentage is None:
                 total_percentage += 0 if not row[index].isnumeric() else int(row[index])
                 record_count += 0 if not row[index].isnumeric() else 1
@@ -84,7 +84,7 @@ class Country:
     def __init__(self, name, income_level, percentage):
         self.name = name
         self.income_level = income_level
-        self.percentage = min(percentage)
+        self.percentage = percentage
 
 if __name__ =='__main__':
 
@@ -170,6 +170,8 @@ if __name__ =='__main__':
                 if percentage == -1:
                     continue
 
+                percentage = sum(percentage) / (len(row) - 2) if year == 'all' else percentage
+
                 lowest_country = Country(country, income, percentage)
                 highest_country = Country(country, income, percentage)
 
@@ -184,14 +186,19 @@ if __name__ =='__main__':
 
             # Add the percentage to last column of info to be displayed and update smallest
             # and largest country vaccination percentages
-            for p in percentage:
-                info.append(p)
-            
-                if p < lowest_country.percentage:
-                    lowest_country = Country(country, income, percentage)
-                
-                if p > highest_country.percentage:
-                    highest_country = Country(country, income, percentage)
+
+            if year == 'all':
+                for p in percentage:
+                    info.append(p)
+            else:
+                info.append(percentage)
+
+            percentage = sum(percentage) / (len(row) - 2) if year == 'all' else percentage
+
+            if percentage < lowest_country.percentage:
+                lowest_country = Country(country, income, percentage)
+            if percentage > highest_country.percentage:
+                highest_country = Country(country, income, percentage)
 
             # Write info to file
             writer.writerow(info)
@@ -252,10 +259,12 @@ if __name__ =='__main__':
                 avg = 0
                 
                 for j in range(2, len(row)):
+                    
                     if not row[j].isnumeric():
                         break 
 
                     avg += int(row[j])
+                    
                 avg /= j - 2
 
                 percentages = np.append(percentages, [avg])
